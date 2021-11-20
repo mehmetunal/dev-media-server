@@ -1,11 +1,33 @@
 ﻿{
-  "$schema": "http://json.schemastore.org/launchsettings.json",
-  "profiles": {
-    "Devfreco.MediaServer.Api": {
-      "commandName": "Project",
-      "environmentVariables": {
-        
+  "Serilog": {
+    "MinimumLevel": {
+      "Default": "Error",
+      "Override": {
+        "Skoruba": "Information"
       }
-    }
+    },
+    "WriteTo": [
+      {
+        "Name": "Console"
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "Log/skoruba_admin.txt",
+          "rollingInterval": "Day"
+        }
+      },
+      {
+        "Name": "MongoDBlServer",
+        "Args": {
+          "connectionString": "mongodb://mehmet:123@127.0.0.1:27017/dev-media-server",
+          "tableName": "Log",
+          "columnOptionsSection": {
+            "addStandardColumns": [ "LogEvent" ],
+            "removeStandardColumns": [ "Properties" ]
+          }
+        }
+      }
+    ]
   }
 }

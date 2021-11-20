@@ -1,7 +1,11 @@
-﻿namespace Devfreco.MediaServer.Mapper
+﻿using AutoMapper;
+
+namespace Devfreco.MediaServer.Mapper
 {
-    public class AutoMapping
+    public class AutoMapping : Profile
     {
-        
+        public AutoMapping()
+        {
+        }
     }
 }

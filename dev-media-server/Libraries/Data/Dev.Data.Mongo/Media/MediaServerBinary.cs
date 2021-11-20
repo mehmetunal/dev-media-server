@@ -7,6 +7,6 @@ namespace Dev.Data.Mongo.Media
     public class MediaServerBinary : BaseEntity, IPrimaryKey<ObjectId>
     {
         public virtual ObjectId MediaServerId { get; set; }
-        public virtual BsonBinaryData Size { get; set; }
+        public virtual BsonBinaryData BinaryData { get; set; }
     }
 }

@@ -1,13 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Dev.Framework.Api;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Devfreco.MediaServer.Controllers
 {
-    public class DevBaseController : Controller
+    public class DevBaseController : BaseApiController
     {
-        // GET
-        public IActionResult Index()
-        {
-            return View();
-        }
+       
     }
 }
