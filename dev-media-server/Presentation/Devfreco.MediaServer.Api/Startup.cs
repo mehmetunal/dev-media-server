@@ -1,26 +1,20 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Dev.Core.IO;
 using Dev.Core.IoC;
 using Dev.Framework.Exceptions;
 using Dev.Framework.Extensions;
 using Dev.Framework.Helper.ModelStateResponseFactory;
 using Dev.Framework.Security.Model;
-using Dev.Framework.Systems;
 using Dev.Mongo.Extensions;
 using Dev.Mongo.Repository;
-using Devfreco.MediaServer.Mapper;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using System.IO;
+using System.Threading.Tasks;
 
 namespace Devfreco.MediaServer
 {
@@ -48,6 +42,11 @@ namespace Devfreco.MediaServer
 
             services.AddControllers().AddJsonOptionsConfig();
 
+            services.AddMvc();
+
+            services.AddControllersWithViews();
+            services.AddWebEncoders();
+
             services.AddAdminApiCors(TokenOptions);
 
             services.AddApiVersioningConfig(Configuration);
@@ -58,11 +57,7 @@ namespace Devfreco.MediaServer
 
             services.RegisterAll<IService>();
 
-            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
-
             services.Configure<ApiBehaviorOptions>(options => { options.InvalidModelStateResponseFactory = ctx => new ModelStateFeatureFilter(); });
-
-            services.AddAutoMapperConfig(p => p.AddProfile<AutoMapping>(), typeof(Startup));
 
             services.AddMongoDbConfig(Configuration);
 
@@ -113,18 +108,18 @@ namespace Devfreco.MediaServer
 
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 
-            //app.UseStatusCodePages(new StatusCodePagesOptions()
-            //{
-            //    HandleAsync = (ctx) =>
-            //    {
-            //        if (ctx.HttpContext.Response.StatusCode == 404)
-            //        {
-            //            throw new NotFoundException($"Not Found Page");
-            //        }
+            app.UseStatusCodePages(new StatusCodePagesOptions()
+            {
+                HandleAsync = (ctx) =>
+                {
+                    if (ctx.HttpContext.Response.StatusCode == 404)
+                    {
+                        throw new NotFoundException($"Not Found Page");
+                    }
 
-            //        return Task.FromResult(0);
-            //    }
-            //});
+                    return Task.FromResult(0);
+                }
+            });
 
             app.ConfigureRequestPipeline();
 

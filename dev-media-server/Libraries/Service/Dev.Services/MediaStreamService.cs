@@ -7,41 +7,41 @@ namespace Dev.Services
     public class MediaStreamHelper
     {
         #region Property
-        
+
         // Chunk file size in byte
         public const int ReadStreamBufferSize = 256 * 1024;
-        private readonly bool _inBuffer = false;
         readonly string _bufferPath;
+        public string id { get; set; }
+        public long FileSize { get; set; }
+        public string FileType { get; set; }
+        public string FileExt { get; set; }
+        public FileStream fis { get; set; }
 
         #endregion
-
-        public MediaStreamHelper(Dev.Data.Mongo.Media.MediaServer mediaServer)
+      
+        public  MediaStreamHelper(string id, IMediaServerService _mediaServerService)
         {
-            _bufferPath = mediaServer.Path;
-            if (System.IO.File.Exists(_bufferPath))
+            var mediaServer = _mediaServerService.GetByIdAsync(id).GetAwaiter().GetResult();
+            if (mediaServer != null)
             {
-                FileStream fis = null;
-                try
-                {
-                    fis = System.IO.File.Open(_bufferPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                    _inBuffer = true;
-                }
-                catch (Exception)
-                {
-                    _inBuffer = false;
-                }
+                FileSize = mediaServer.Size;
+                FileType = mediaServer.FileExtensions.Replace(".", "");
+                FileExt = mediaServer.FileExtensions;
+                _bufferPath = mediaServer.Path;
+            }
 
-                try
-                {
-                    if (fis != null)
-                        fis.Close();
-                }
-                catch (Exception)
-                {
-                }
+            if (File.Exists(_bufferPath))
+            {
+                fis = new FileStream(path: _bufferPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                FileSize = fis.Length;
             }
         }
-        
+
+        public void SetPosition(long position)
+        {
+            fis.Seek(position, SeekOrigin.Begin);
+        }
+
         /// <summary>
         /// Load Media From SQL Server FileStream in the form of chunked parts
         /// </summary>
@@ -50,45 +50,49 @@ namespace Dev.Services
         /// <param name="end">End range byte of media to play</param>
         /// <param name="id">Id of media to find</param>
         /// <returns></returns>
-        public async Task CreatePartialContent(Stream outputStream, long start, long end, string id)
+        public async Task CreatePartialContent(Stream outputStream, long start, long end, bool isCancellationRequested)
         {
-            int count = 0;
-            long remainingBytes = end - start + 1;
-            long position = start;
-
-            byte[] buffer = new byte[ReadStreamBufferSize];
-            if (_inBuffer) //---------------------------(It's optional) LOAD FROM BUFFER----------------------------------------------
+            try
             {
-                try
-                {
-                    using (FileStream sfs = new FileStream(_bufferPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, ReadStreamBufferSize, true))
-                    {
-                        sfs.Position = start;
-                        do
-                        {
-                            try
-                            {
-                                count = await sfs.ReadAsync(buffer, 0, Math.Min((int) remainingBytes, ReadStreamBufferSize));
-                                if (count <= 0) break;
-                                await outputStream.WriteAsync(buffer, 0, count);
-                            }
-                            catch (Exception)
-                            {
-                                return;
-                            }
+                int length;
+                long videSize = fis.Length;
+                byte[] buffer = new Byte[ReadStreamBufferSize];
 
-                            position = sfs.Position;
-                            remainingBytes = end - position + 1;
-                        } while (position <= end);
+                long remainingBytes = end - start + 1;
+
+                while (videSize > 0)
+                {
+                    // Verify that the client is connected.
+                    if (isCancellationRequested == false)
+                    {
+                        // Read the data in buffer.
+                        length = await fis.ReadAsync(buffer, 0, Math.Min((int)remainingBytes, ReadStreamBufferSize));
+
+                        // Write the data to the current output stream.
+                        await outputStream.WriteAsync(buffer, 0, length);
+                        // Flush the data to the HTML output.
+                        outputStream.Flush();
+
+                        buffer = new Byte[buffer.Length];
+                        videSize = videSize - buffer.Length;
+                    }
+                    else
+                    {
+                        //prevent infinite loop if user disconnects
+                        videSize = -1;
                     }
                 }
-                catch (Exception)
+            }
+            catch (Exception)
+            {
+
+            }
+            finally
+            {
+                if (fis != null)
                 {
-                }
-                finally
-                {
-                    await outputStream.FlushAsync();
-                    outputStream.Close();
+                    //Close the file.
+                    fis.Close();
                 }
             }
         }
