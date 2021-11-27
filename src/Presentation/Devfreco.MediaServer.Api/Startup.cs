@@ -42,13 +42,17 @@ namespace Devfreco.MediaServer
             TokenOptions = tokenOptionsConfiguration.Get<ApiTokenOptions>();
 
             services.AddControllers().AddJsonOptionsConfig();
-
+            
+            
             services.AddMvc();
 
             services.AddControllersWithViews();
+            
             services.AddWebEncoders();
 
             services.AddAdminApiCors(TokenOptions);
+
+            services.AddCors();
 
             services.AddApiVersioningConfig(Configuration);
 
