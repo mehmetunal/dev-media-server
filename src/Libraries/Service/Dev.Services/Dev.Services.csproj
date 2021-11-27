@@ -12,7 +12,6 @@
         <Reference Include="Dev.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>..\..\..\Devfreco.Referance\Dev.Core.dll</HintPath>
         </Reference>
-
         <Reference Include="Dev.Data, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>..\..\..\Devfreco.Referance\Dev.Data.dll</HintPath>
         </Reference>

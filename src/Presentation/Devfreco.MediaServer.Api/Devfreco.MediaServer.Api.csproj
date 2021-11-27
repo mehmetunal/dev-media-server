@@ -25,13 +25,15 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\Libraries\Data\Dev.Data.Mongo\Dev.Data.Mongo.csproj" />
         <ProjectReference Include="..\..\Libraries\Service\Dev.Services\Dev.Services.csproj" />
     </ItemGroup>
 
     <ItemGroup>
         <Reference Include="Dev.Core, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>..\..\Devfreco.Referance\Dev.Core.dll</HintPath>
+        </Reference>
+        <Reference Include="Dev.Data, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
+          <HintPath>..\..\Devfreco.Referance\Dev.Data.dll</HintPath>
         </Reference>
         <Reference Include="Dev.Framework, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null">
             <HintPath>..\..\Devfreco.Referance\Dev.Framework.dll</HintPath>
