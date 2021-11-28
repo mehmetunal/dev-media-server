@@ -11,30 +11,29 @@ namespace Dev.Services
         // Chunk file size in byte
         public const int ReadStreamBufferSize = 256 * 1024;
         readonly string _bufferPath;
-        public string id { get; set; }
         public long FileSize { get; set; }
         public string FileType { get; set; }
         public string FileExt { get; set; }
-        public FileStream fis { get; set; }
+        public Stream fis { get; set; }
 
         #endregion
-      
-        public  MediaStreamHelper(string id, IMediaServerService _mediaServerService)
-        {
-            var mediaServer = _mediaServerService.GetByIdAsync(id).GetAwaiter().GetResult();
-            if (mediaServer != null)
-            {
-                FileSize = mediaServer.Size;
-                FileType = mediaServer.FileExtensions.Replace(".", "");
-                FileExt = mediaServer.FileExtensions;
-                _bufferPath = mediaServer.Path;
-            }
 
-            if (File.Exists(_bufferPath))
-            {
-                fis = new FileStream(path: _bufferPath, FileMode.Open, FileAccess.Read, FileShare.Read);
-                FileSize = fis.Length;
-            }
+        public MediaStreamHelper()
+        {
+            //var mediaServer = _mediaServerService.GetByIdAsync(id).GetAwaiter().GetResult();
+            //if (mediaServer != null)
+            //{
+            //    FileSize = mediaServer.Size;
+            //    FileType = mediaServer.FileExtensions.Replace(".", "");
+            //    FileExt = mediaServer.FileExtensions;
+            //    _bufferPath = mediaServer.Path;
+            //}
+
+            //if (File.Exists(_bufferPath))
+            //{
+            //    fis = new FileStream(path: _bufferPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            //    FileSize = fis.Length;
+            //}
         }
 
         public void SetPosition(long position)
@@ -83,7 +82,7 @@ namespace Dev.Services
                     }
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
 
             }

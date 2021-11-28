@@ -2,8 +2,10 @@
 {
     public class MediaDto
     {
-        public long FileSize { get; set; }
-        public string FileType { get; set; }
-        public string FileExt { get; set; }
+        public string? Id { get; set; }
+        public string? Name { get; set; }
+        public string? Extensions { get; set; }
+        public long Length { get; set; }
+        public string? Size { get; set; }
     }
 }

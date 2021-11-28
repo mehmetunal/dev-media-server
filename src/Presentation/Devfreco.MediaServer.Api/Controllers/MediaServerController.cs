@@ -1,10 +1,9 @@
-﻿
-
-using System;
-using System.Threading.Tasks;
+﻿using Dev.Dto.Mongo;
 using Dev.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Threading.Tasks;
 
 namespace Devfreco.MediaServer.Controllers
 {
@@ -28,11 +27,27 @@ namespace Devfreco.MediaServer.Controllers
 
         #region Method
 
+        [HttpGet("GetImageById/{id}")]
+        public async Task<string> GetImageById(string id)
+        {
+            var result = await _mediaServerService.GetImageByIdAsync(id);
+            return result;
+        }
+
         [HttpGet("GetFileById/{id}")]
-        public async Task<object> GetFileById(string id)
+        public async Task<MediaDto> GetFileById(string id)
         {
             var result = await _mediaServerService.GetByIdAsync(id);
             return result;
+        }
+
+
+        [HttpGet("FileDownload/{id}")]
+        public async Task<FileResult> FileDownload(string id)
+        {
+            var (fileContents, fileName) = await _mediaServerService.FileDownload(id);
+            string contentType = MimeKit.MimeTypes.GetMimeType(fileName);
+            return File(fileContents, contentType);
         }
 
         [HttpGet("GetVideoById/{id}")]
@@ -41,7 +56,15 @@ namespace Devfreco.MediaServer.Controllers
             Response.Headers["Accept-Ranges"] = "bytes";
             Response.ContentType = "application/octet-stream";
 
-            MediaStreamHelper mediaStream = new MediaStreamHelper(id, _mediaServerService);
+            var fileInfo = await _mediaServerService.GetByIdAsync(id);
+            var fileStream = (await _mediaServerService.GetFileByIdAsync(id));
+
+            var mediaStream = new MediaStreamHelper();
+            mediaStream.FileSize = fileInfo.Length;
+            mediaStream.FileExt = fileInfo.Extensions;
+            mediaStream.FileType = fileInfo.Extensions.Replace(".", "");
+            mediaStream.fis = fileStream;
+
 
             long end = 0;
             int start = 0;
@@ -50,7 +73,7 @@ namespace Devfreco.MediaServer.Controllers
 
             if (!String.IsNullOrEmpty(Request.Headers["Range"]))
             {
-                string[] range = Request.Headers["Range"].ToString().Split(new char[] {'=', '-'});
+                string[] range = Request.Headers["Range"].ToString().Split(new char[] { '=', '-' });
                 start = Int32.Parse(range[1]);
                 mediaStream.SetPosition(start);
                 Response.StatusCode = 206;
@@ -75,28 +98,25 @@ namespace Devfreco.MediaServer.Controllers
         [HttpPost("uploadComplete")]
         public async Task<string> UploadComplete(string fileName)
         {
-            var result = await _mediaServerService.AddAsync(fileName);
-            return result.Id.ToString();
+            var objId = await _mediaServerService.AddAsync(fileName);
+            return objId;
         }
 
         [HttpPost("uploadComplete/{id}")]
         public async Task<string> UploadComplete(string fileName, string id)
         {
-            var mediaServer = await _mediaServerService.UpdateAsync(fileName, id);
-            if (mediaServer == null)
-                throw new ArgumentNullException($"{fileName} is null");
+            var fileId = await _mediaServerService.UpdateAsync(fileName, id);
+            if (fileId == null)
+                throw new ArgumentNullException($"{fileId} is null");
 
-            return mediaServer.Id.ToString();
+            return fileId;
         }
 
         [HttpDelete("{id}")]
         public async Task<bool> Delete(string id)
         {
-            var mediaServer = await _mediaServerService.DeleteAsync(id);
-            if (mediaServer == null)
-                throw new ArgumentNullException($"{id} is null");
-
-            return mediaServer.Id != null;
+            var isSuccess = await _mediaServerService.DeleteAsync(id);
+            return isSuccess;
         }
 
         #endregion

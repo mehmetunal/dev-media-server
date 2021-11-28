@@ -16,6 +16,7 @@ using Microsoft.Extensions.Hosting;
 using System.IO;
 using System.Threading.Tasks;
 using Serilog;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace Devfreco.MediaServer
 {
@@ -43,7 +44,6 @@ namespace Devfreco.MediaServer
 
             services.AddControllers().AddJsonOptionsConfig();
             
-            
             services.AddMvc();
 
             services.AddControllersWithViews();
@@ -67,6 +67,7 @@ namespace Devfreco.MediaServer
             services.AddMongoDbConfig(Configuration);
 
             services.AddScoped(typeof(IMongoRepository<>), typeof(MongoRepository<>));
+            services.AddScoped(typeof(IGridFsRepository), typeof(GridFsRepository));
 
             services.AddSingleton<IFileManagerProviderBase>(
                 new FileManagerProviderBase(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")));
@@ -78,6 +79,18 @@ namespace Devfreco.MediaServer
             services.AddScoped<IFilesManager, FilesManager>();
 
             services.AddScoped<IDevFileProvider, DevFileProvider>();
+
+            // If using Kestrel:
+            services.Configure<KestrelServerOptions>(options =>
+            {
+                options.AllowSynchronousIO = true;
+            });
+
+            // If using IIS:
+            services.Configure<IISServerOptions>(options =>
+            {
+                options.AllowSynchronousIO = true;
+            });
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -110,19 +123,6 @@ namespace Devfreco.MediaServer
             app.UseCorsConfig();
 
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
-
-            app.UseStatusCodePages(new StatusCodePagesOptions()
-            {
-                HandleAsync = (ctx) =>
-                {
-                    if (ctx.HttpContext.Response.StatusCode == 404)
-                    {
-                        throw new NotFoundException($"Not Found Page");
-                    }
-
-                    return Task.FromResult(0);
-                }
-            });
 
             app.ConfigureRequestPipeline();
         }
