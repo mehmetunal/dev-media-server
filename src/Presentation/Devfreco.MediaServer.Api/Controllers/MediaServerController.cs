@@ -53,11 +53,12 @@ namespace Devfreco.MediaServer.Controllers
         [HttpGet("GetVideoById/{id}")]
         public async Task GetVideoById(string id)
         {
-            Response.Headers["Accept-Ranges"] = "bytes";
-            Response.ContentType = "application/octet-stream";
 
             var fileInfo = await _mediaServerService.GetByIdAsync(id);
             var fileStream = (await _mediaServerService.GetFileByIdAsync(id));
+
+            Response.Headers["Accept-Ranges"] = "bytes";
+            Response.ContentType = MimeKit.MimeTypes.GetMimeType(fileInfo.Extensions);
 
             var mediaStream = new MediaStreamHelper();
             mediaStream.FileSize = fileInfo.Length;
@@ -65,11 +66,9 @@ namespace Devfreco.MediaServer.Controllers
             mediaStream.FileType = fileInfo.Extensions.Replace(".", "");
             mediaStream.fis = fileStream;
 
-
             long end = 0;
             int start = 0;
             var CHUNK_SIZE = 1024 * 10;
-
 
             if (!String.IsNullOrEmpty(Request.Headers["Range"]))
             {
@@ -79,6 +78,7 @@ namespace Devfreco.MediaServer.Controllers
                 Response.StatusCode = 206;
                 end = Math.Min(start + CHUNK_SIZE, mediaStream.FileSize - 1);
                 Response.Headers["Content-Range"] = String.Format(" bytes {0}-{1}/{2}", start, mediaStream.FileSize - 1, mediaStream.FileSize);
+
             }
 
             var outputStream = this.Response.Body;

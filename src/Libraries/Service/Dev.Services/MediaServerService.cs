@@ -29,7 +29,7 @@ namespace Dev.Services
             IDevFileProvider devFileProvider,
             IGridFsRepository gridFsRepository)
         {
-            path = RemoteIp.Replace(".", "").Replace(":", "").Replace(";", "");
+            path = RemoteIp.Replace(".", "-").Replace(":", "--").Replace(";", "--");
             _filesManager = filesManager;
             _devFileProvider = devFileProvider;
             _root = $"{_devFileProvider.GetAbsolutePath("/")}/{path}";
@@ -223,9 +223,9 @@ namespace Dev.Services
                 _filesManager.MergeChunks(newPath, filePath);
             }
 
-            _devFileProvider.FileMove(Path.Combine(tempPath, fileName), Path.Combine(_root, fileName));
-
-            var newFilePath = Path.Combine(_root, fileName);
+            var fileInfo = _filesManager.FileRandomName(Path.Combine(tempPath, fileName));
+            var newFilePath = Path.Combine(_root, fileInfo.Name);
+            _devFileProvider.FileMove(fileInfo.FullName, newFilePath);
 
             return newFilePath;
         }
