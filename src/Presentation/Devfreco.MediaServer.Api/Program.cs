@@ -8,6 +8,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Xabe.FFmpeg;
 
 namespace Devfreco.MediaServer
 {
@@ -15,6 +16,7 @@ namespace Devfreco.MediaServer
     {
         public static void Main(string[] args)
         {
+            Load().Wait();
             var configuration = GetConfiguration(args);
 
             Log.Logger = new LoggerConfiguration()
@@ -35,7 +37,13 @@ namespace Devfreco.MediaServer
                 Log.CloseAndFlush();
             }
         }
-
+        public static async Task Load()
+        {
+            //Set directory where app should look for FFmpeg 
+            FFmpeg.ExecutablesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FFmpeg");
+            //Get latest version of FFmpeg. It's great idea if you don't know if you had installed FFmpeg.
+            await FFmpeg.GetLatestVersion();
+        }
         private static IConfiguration GetConfiguration(string[] args)
         {
             var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");

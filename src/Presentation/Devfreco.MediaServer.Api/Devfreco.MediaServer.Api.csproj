@@ -18,6 +18,7 @@
         <PackageReference Include="Swashbuckle.AspNetCore.SwaggerUI" Version="6.2.2" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
         <PackageReference Include="Serilog.AspNetCore" Version="3.4.0" />
+		<PackageReference Include="Xabe.FFMpeg" Version="3.1.0" />
     </ItemGroup>
 
     <ItemGroup>

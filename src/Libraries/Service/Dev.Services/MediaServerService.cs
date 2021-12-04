@@ -6,6 +6,7 @@ using Dev.Mongo.Repository;
 using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using Xabe.FFmpeg;
 
 namespace Dev.Services
 {
@@ -52,7 +53,6 @@ namespace Dev.Services
 
             return fileInfo;
         }
-
         public virtual async Task<MediaDto> GetByIdAsync(string id)
         {
             if (!ObjectId.TryParse(id, out ObjectId objid))
@@ -63,6 +63,10 @@ namespace Dev.Services
             if (gridFsData == null)
                 throw new ArgumentNullException(nameof(gridFsData));
 
+            var videoFilePath = Path.Combine(_root, gridFsData.Filename);
+            IMediaInfo mediaInfo = await MediaInfo.Get(videoFilePath);
+            var videoDuration = mediaInfo.VideoStreams.First()?.Duration;
+
             var mediaDto = new MediaDto
             {
                 Id = gridFsData.Id.ToString(),
@@ -70,6 +74,7 @@ namespace Dev.Services
                 Length = gridFsData.Length,
                 Extensions = Path.GetExtension(gridFsData.Filename),
                 Size = _filesManager.FormatFileSize(gridFsData.Length),
+                Duration = videoDuration.ToString()
             };
 
             return mediaDto;
