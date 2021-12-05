@@ -17,6 +17,7 @@ using System.IO;
 using System.Threading.Tasks;
 using Serilog;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Dev.Services;
 
 namespace Devfreco.MediaServer
 {
@@ -91,6 +92,10 @@ namespace Devfreco.MediaServer
             {
                 options.AllowSynchronousIO = true;
             });
+
+            services.AddHostedService<QueueService>();
+            services.AddSingleton<IBackgroundQueueService, BackgroundQueueService>();
+
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -115,7 +120,7 @@ namespace Devfreco.MediaServer
             }
 
             app.UseStaticFiles();
-
+            
             app.UseSwaggerUIConfig(TokenOptions);
 
             app.UseRouting();

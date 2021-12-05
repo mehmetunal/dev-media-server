@@ -3,6 +3,10 @@ using Dev.Services;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.IO;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Devfreco.MediaServer.Controllers
@@ -11,9 +15,7 @@ namespace Devfreco.MediaServer.Controllers
     public class MediaServerController : ControllerBase
     {
         #region Properties
-
         private readonly IMediaServerService _mediaServerService;
-
         #endregion
 
         #region Ctor
@@ -41,7 +43,6 @@ namespace Devfreco.MediaServer.Controllers
             return result;
         }
 
-
         [HttpGet("FileDownload/{id}")]
         public async Task<FileResult> FileDownload(string id)
         {
@@ -53,39 +54,50 @@ namespace Devfreco.MediaServer.Controllers
         [HttpGet("GetVideoById/{id}")]
         public async Task GetVideoById(string id)
         {
-
-            var fileInfo = await _mediaServerService.GetByIdAsync(id);
-            var fileStream = (await _mediaServerService.GetFileByIdAsync(id));
-
-            Response.Headers["Accept-Ranges"] = "bytes";
-            Response.ContentType = MimeKit.MimeTypes.GetMimeType(fileInfo.Extensions);
-
-            var mediaStream = new MediaStreamHelper();
-            mediaStream.FileSize = fileInfo.Length;
-            mediaStream.FileExt = fileInfo.Extensions;
-            mediaStream.FileType = fileInfo.Extensions.Replace(".", "");
-            mediaStream.fis = fileStream;
-
-            long end = 0;
-            int start = 0;
-            var CHUNK_SIZE = 1024 * 10;
-
-            if (!String.IsNullOrEmpty(Request.Headers["Range"]))
+            if (!string.IsNullOrEmpty(Request.Headers["Range"]))
             {
+                var fileInfo = await _mediaServerService.GetByIdAsync(id);
+                var fileStream = (await _mediaServerService.GetFileByIdAsync(id));
+
+                Response.Headers["Accept-Ranges"] = "bytes";
+                Response.ContentType = MimeKit.MimeTypes.GetMimeType(fileInfo.Extensions);
                 string[] range = Request.Headers["Range"].ToString().Split(new char[] { '=', '-' });
-                start = Int32.Parse(range[1]);
-                mediaStream.SetPosition(start);
+
+                long start = long.Parse(range[1]);
+
+                long end = Math.Min(start + (5000000), fileStream.Length - 1);
+
+                var mediaStreamHelper = new MediaStreamHelper
+                {
+                    fis = fileStream
+                };
+
                 Response.StatusCode = 206;
-                end = Math.Min(start + CHUNK_SIZE, mediaStream.FileSize - 1);
-                Response.Headers["Content-Range"] = String.Format(" bytes {0}-{1}/{2}", start, mediaStream.FileSize - 1, mediaStream.FileSize);
 
+                #region OLD
+                //long rangeStart = long.Parse(range[1]);
+                //long? rangeEnd = null;
+                //if (range.Length > 3)
+                //{
+                //    if (long.TryParse(range[2].ToString(), out long rEnd))
+                //    {
+                //        rangeEnd = rEnd;
+                //    }
+                //}
+                //mediaStreamHelper.TryReadRangeItem(rangeStart, rangeEnd, fileStream.Length, out long start, out long end);
+                //Response.ContentLength = end - start + 1;
+                #endregion
+
+                var contentRange = new ContentRangeHeaderValue(start, end, fileStream.Length);
+
+                Response.Headers["Content-Range"] = contentRange.ToString();
+
+                var outputStream = this.Response.Body;
+
+                await mediaStreamHelper.CreatePartialContentAsync(outputStream, start, end);
+
+                Response.Clear();
             }
-
-            var outputStream = this.Response.Body;
-
-            await mediaStream.CreatePartialContent(outputStream, start, end, HttpContext.RequestAborted.IsCancellationRequested);
-
-            Response.Clear();
         }
 
         [HttpPost("upload")]
@@ -118,6 +130,7 @@ namespace Devfreco.MediaServer.Controllers
             var isSuccess = await _mediaServerService.DeleteAsync(id);
             return isSuccess;
         }
+
 
         #endregion
     }

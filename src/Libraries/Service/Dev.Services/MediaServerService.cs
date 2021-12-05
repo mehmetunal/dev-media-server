@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Xabe.FFmpeg;
+using Xabe.FFmpeg.Enums;
 
 namespace Dev.Services
 {
@@ -63,10 +64,6 @@ namespace Dev.Services
             if (gridFsData == null)
                 throw new ArgumentNullException(nameof(gridFsData));
 
-            var videoFilePath = Path.Combine(_root, gridFsData.Filename);
-            IMediaInfo mediaInfo = await MediaInfo.Get(videoFilePath);
-            var videoDuration = mediaInfo.VideoStreams.First()?.Duration;
-
             var mediaDto = new MediaDto
             {
                 Id = gridFsData.Id.ToString(),
@@ -74,8 +71,21 @@ namespace Dev.Services
                 Length = gridFsData.Length,
                 Extensions = Path.GetExtension(gridFsData.Filename),
                 Size = _filesManager.FormatFileSize(gridFsData.Length),
-                Duration = videoDuration.ToString()
             };
+
+            var mimeType = MimeKit.MimeTypes.GetMimeType(gridFsData.Filename);
+            if (mimeType.StartsWith("video"))
+            {
+                var videoFilePath = Path.Combine(_root, gridFsData.Filename);
+                var mediaInfo = await MediaInfo.Get(videoFilePath);
+
+                var videoStream = mediaInfo.VideoStreams.FirstOrDefault();
+                if (videoStream != null)
+                {
+                    var videoDuration = videoStream?.Duration;
+                    mediaDto.Duration = videoDuration.ToString();
+                }
+            }
 
             return mediaDto;
         }
@@ -135,19 +145,6 @@ namespace Dev.Services
             return stream;
         }
 
-        //public virtual async Task UpdateAsync(string id, string fileName)
-        //{
-        //    var resultMediaServer = await _gridFsRepository.DeleteAsync(id);
-        //    _filesManager.Delete(resultMediaServer.Path);
-        //    var newFilePath = FileMove(fileName);
-        //    var mediaServer = LoadMediaServer(newFilePath);
-        //    mediaServer.Id = resultMediaServer.Id;
-        //    mediaServer.CreatedDate = resultMediaServer.CreatedDate;
-        //    mediaServer.CreatorIP = resultMediaServer.CreatorIP;
-        //    var result = await _repository.UpdateAsync(mediaServer);
-        //    return result;
-        //}
-
         public virtual async Task<string> UpdateAsync(string id, string fileName)
         {
             if (!ObjectId.TryParse(id, out ObjectId objid))
@@ -157,15 +154,6 @@ namespace Dev.Services
                 throw new ArgumentNullException(nameof(fileName));
 
             await DeleteAsync(id);
-            //var file = await GetByIdAsync(id);
-            //if (file == null)
-            //    throw new ArgumentNullException(nameof(file));
-
-            //var fullPath = Path.Combine(_root, file.Name);
-
-            //_filesManager.Delete(fullPath);
-
-            //await _gridFsRepository.DeleteAsync(objid);
 
             var newFilePath = FileMove(fileName);
 
