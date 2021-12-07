@@ -1,13 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Serilog;
+using System;
+using System.IO;
+using System.Threading.Tasks;
 using Xabe.FFmpeg;
 
 namespace Devfreco.MediaServer
@@ -16,16 +13,20 @@ namespace Devfreco.MediaServer
     {
         public static void Main(string[] args)
         {
-            Load().Wait();
+            Console.WriteLine($"{nameof(Program)} Start...");
+
             var configuration = GetConfiguration(args);
 
             Log.Logger = new LoggerConfiguration()
                 .ReadFrom.Configuration(configuration)
                 .CreateLogger();
+
             try
             {
                 // DockerHelpers.ApplyDockerConfiguration(configuration);
                 Log.Information("de-media-server start ....");
+                Load();
+                //Load().Wait();
                 CreateHostBuilder(args).Build().Run();
             }
             catch (Exception ex)
@@ -73,6 +74,7 @@ namespace Devfreco.MediaServer
             Host.CreateDefaultBuilder(args)
                 .ConfigureAppConfiguration((hostContext, configApp) =>
                 {
+
                     var configurationRoot = configApp.Build();
 
                     configApp.AddJsonFile("serilog.json", optional: true, reloadOnChange: true);
@@ -90,17 +92,21 @@ namespace Devfreco.MediaServer
 
                     configApp.AddEnvironmentVariables();
                     configApp.AddCommandLine(args);
+
                 })
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.ConfigureKestrel(options => options.AddServerHeader = false);
                     webBuilder.UseStartup<Startup>();
+                    webBuilder.UseIIS();
                 })
                 .UseSerilog((hostContext, loggerConfig) =>
                 {
                     loggerConfig
                         .ReadFrom.Configuration(hostContext.Configuration)
                         .Enrich.WithProperty("ApplicationName", hostContext.HostingEnvironment.ApplicationName);
+
                 });
+
     }
 }

@@ -1,23 +1,21 @@
 using Dev.Core.IO;
 using Dev.Core.IoC;
-using Dev.Framework.Exceptions;
 using Dev.Framework.Extensions;
 using Dev.Framework.Helper.ModelStateResponseFactory;
 using Dev.Framework.Security.Model;
 using Dev.Mongo.Extensions;
 using Dev.Mongo.Repository;
+using Dev.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using System;
 using System.IO;
-using System.Threading.Tasks;
-using Serilog;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
-using Dev.Services;
 
 namespace Devfreco.MediaServer
 {
@@ -37,6 +35,8 @@ namespace Devfreco.MediaServer
 
         public void ConfigureServices(IServiceCollection services)
         {
+            Console.WriteLine("ConfigureServices START...");
+
             var tokenOptionsConfiguration = Configuration.GetSection("TokenOptions");
 
             services.Configure<ApiTokenOptions>(tokenOptionsConfiguration);
@@ -95,11 +95,13 @@ namespace Devfreco.MediaServer
 
             services.AddHostedService<QueueService>();
             services.AddSingleton<IBackgroundQueueService, BackgroundQueueService>();
-
+            Console.WriteLine("ConfigureServices END...");
         }
 
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            Console.WriteLine("Configure START...");
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -130,6 +132,8 @@ namespace Devfreco.MediaServer
             app.UseEndpoints(endpoints => { endpoints.MapControllers(); });
 
             app.ConfigureRequestPipeline();
+
+            Console.WriteLine("Configure END...");
         }
     }
 }
