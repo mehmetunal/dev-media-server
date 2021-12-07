@@ -25,8 +25,8 @@ namespace Devfreco.MediaServer
             {
                 // DockerHelpers.ApplyDockerConfiguration(configuration);
                 Log.Information("de-media-server start ....");
-                Load();
-                //Load().Wait();
+                //Load();
+                Load().Wait();
                 CreateHostBuilder(args).Build().Run();
             }
             catch (Exception ex)
@@ -41,7 +41,7 @@ namespace Devfreco.MediaServer
         public static async Task Load()
         {
             //Set directory where app should look for FFmpeg 
-            FFmpeg.ExecutablesPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "FFmpeg");
+            FFmpeg.ExecutablesPath = Path.Combine(Directory.GetCurrentDirectory(), "FFmpeg");
             //Get latest version of FFmpeg. It's great idea if you don't know if you had installed FFmpeg.
             await FFmpeg.GetLatestVersion();
         }
