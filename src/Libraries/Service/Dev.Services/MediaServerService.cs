@@ -21,6 +21,7 @@ namespace Dev.Services
         private readonly IFilesManager _filesManager;
         private readonly IDevFileProvider _devFileProvider;
         private readonly IGridFsRepository _gridFsRepository;
+        private readonly IMongoRepository<object> _mongoRepository;
 
         #endregion
 
@@ -29,8 +30,10 @@ namespace Dev.Services
         public MediaServerService(
             IFilesManager filesManager,
             IDevFileProvider devFileProvider,
-            IGridFsRepository gridFsRepository)
+            IGridFsRepository gridFsRepository,
+            IMongoRepository<object> mongoRepository)
         {
+            _mongoRepository = mongoRepository;
             path = RemoteIp.Replace(".", "-").Replace(":", "--").Replace(";", "--");
             _filesManager = filesManager;
             _devFileProvider = devFileProvider;
@@ -191,15 +194,6 @@ namespace Dev.Services
             }
         }
 
-        //public virtual async Task<DevMediaServer> DeleteAsync(string id)
-        //{
-        //    throw new NotImplementedException();
-        //var resultMediaServer = await _repository.FindByIdAsync(id);
-        //_filesManager.Delete(resultMediaServer.Path);
-        //var result = await _repository.DeleteAsync(resultMediaServer);
-        //return result;
-        //}
-
         #endregion
 
         protected virtual string RemoteIp => EngineContext.Current.Resolve<IHttpContextAccessor>().HttpContext.Connection.RemoteIpAddress.ToString();
@@ -222,18 +216,6 @@ namespace Dev.Services
 
             return newFilePath;
         }
-
-        //private DevMediaServer LoadMediaServer(string newFilePath)
-        //{
-        //    FileInfo info = new(newFilePath);
-        //    var mediaServer = new DevMediaServer();
-        //    mediaServer.Path = $"{path}/{info.Name}";
-        //    mediaServer.Size = info.Length;
-        //    mediaServer.FileExtensions = info.Extension;
-        //    mediaServer.FileName = info.Name;
-        //    mediaServer.CreatorIP = RemoteIp;
-        //    return mediaServer;
-        //}
 
         #endregion
     }

@@ -69,7 +69,7 @@ namespace Devfreco.MediaServer.Controllers
 
                 var mediaStreamHelper = new MediaStreamHelper
                 {
-                    fis = fileStream
+                    Fis = fileStream
                 };
 
                 Response.StatusCode = 206;

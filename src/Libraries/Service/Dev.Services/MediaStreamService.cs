@@ -8,11 +8,10 @@ namespace Dev.Services
     {
         #region Property
 
-        private readonly IBackgroundQueueService _queue;
-        public Stream fis { get; set; }
+        private readonly IBackgroundQueueService _queue = EngineContext.Current.Resolve<IBackgroundQueueService>();
+        public Stream? Fis { get; set; }
 
         #endregion
-        public MediaStreamHelper() => this._queue = EngineContext.Current.Resolve<IBackgroundQueueService>();
 
         public async Task CreatePartialContentAsync(Stream outputStream, long start, long end)
         {
@@ -23,12 +22,12 @@ namespace Dev.Services
             byte[] buffer = new byte[ReadStreamBufferSize];
             try
             {
-                fis.Position = start;
+                Fis.Position = start;
                 do
                 {
                     try
                     {
-                        count = await fis.ReadAsync(buffer, 0, Math.Min((int)remainingBytes, ReadStreamBufferSize));
+                        count = await Fis.ReadAsync(buffer, 0, Math.Min((int)remainingBytes, ReadStreamBufferSize));
                         if (count <= 0) break;
                         await outputStream.WriteAsync(buffer, 0, count);
 
@@ -37,7 +36,7 @@ namespace Dev.Services
                     {
                         return;
                     }
-                    position = fis.Position;
+                    position = Fis.Position;
                     remainingBytes = end - position + 1;
                 } while (position <= end);
             }
