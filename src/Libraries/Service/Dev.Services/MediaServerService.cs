@@ -1,6 +1,7 @@
 ﻿using Dev.Core.Infrastructure;
 using Dev.Core.IO;
 using Dev.Core.IO.Model;
+using Dev.Data.Mongo;
 using Dev.Dto.Mongo;
 using Dev.Mongo.Repository;
 using Microsoft.AspNetCore.Http;
@@ -21,7 +22,7 @@ namespace Dev.Services
         private readonly IFilesManager _filesManager;
         private readonly IDevFileProvider _devFileProvider;
         private readonly IGridFsRepository _gridFsRepository;
-        private readonly IMongoRepository<object> _mongoRepository;
+        private readonly IMongoRepository<DevMedia> _mongoRepository;
 
         #endregion
 
@@ -31,7 +32,7 @@ namespace Dev.Services
             IFilesManager filesManager,
             IDevFileProvider devFileProvider,
             IGridFsRepository gridFsRepository,
-            IMongoRepository<object> mongoRepository)
+            IMongoRepository<DevMedia> mongoRepository)
         {
             _mongoRepository = mongoRepository;
             path = RemoteIp.Replace(".", "-").Replace(":", "--").Replace(";", "--");
@@ -110,6 +111,7 @@ namespace Dev.Services
             var newFilePath = FileMove(fileName);
             var stream = new FileStream(path: newFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             FileInfo info = new(newFilePath);
+
             var fileInfo = await _gridFsRepository.UploadFileAsync(stream, info.Name);
             if (fileInfo == null)
                 throw new ArgumentNullException(nameof(fileInfo));
