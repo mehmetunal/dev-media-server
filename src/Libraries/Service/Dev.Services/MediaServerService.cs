@@ -14,10 +14,10 @@ namespace Dev.Services
     public class MediaServerService : IMediaServerService
     {
         #region Properties
-
-        private readonly string _tempFolder;
-        private readonly string _root;
         private string path = "";
+        private readonly string _root;
+        private readonly string _tempFolder;
+        private readonly MediaSetting _mediaSetting;
         private readonly IFilesManager _filesManager;
         private readonly IDevFileProvider _devFileProvider;
         private readonly IGridFsRepository _gridFsRepository;
@@ -28,6 +28,7 @@ namespace Dev.Services
         #region Ctor
 
         public MediaServerService(
+            MediaSetting mediaSetting,
             IFilesManager filesManager,
             IDevFileProvider devFileProvider,
             IGridFsRepository gridFsRepository,
@@ -40,6 +41,7 @@ namespace Dev.Services
             _root = $"{_devFileProvider.GetAbsolutePath("/")}/{path}";
             _tempFolder = $"{_root}/Temp";
             _gridFsRepository = gridFsRepository;
+            _mediaSetting = mediaSetting;
         }
 
         #endregion
@@ -111,6 +113,18 @@ namespace Dev.Services
             var stream = new FileStream(path: newFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             FileInfo info = new(newFilePath);
 
+            if (_mediaSetting.FilesStoredIntoDatabase)
+            {
+                var devMedia = await GetDevMediaAsync(info);
+                if (devMedia == null)
+                    throw new ArgumentNullException(nameof(devMedia));
+                if (devMedia != null)
+                {
+                    var result = await _mongoRepository.AddAsync(devMedia);
+                    return result.Id.ToString();
+                }
+            }
+
             var fileInfo = await _gridFsRepository.UploadFileAsync(stream, info.Name);
             if (fileInfo == null)
                 throw new ArgumentNullException(nameof(fileInfo));
@@ -166,6 +180,20 @@ namespace Dev.Services
             if (fileInfo == null)
                 throw new ArgumentNullException(nameof(fileInfo));
 
+            if (_mediaSetting.FilesStoredIntoDatabase)
+            {
+                var devMedia = await GetDevMediaAsync(fileInfo);
+                devMedia.Id = objid;
+
+                if (devMedia == null)
+                    throw new ArgumentNullException(nameof(devMedia));
+                if (devMedia != null)
+                {
+                    var result = await _mongoRepository.AddAsync(devMedia);
+                    return result.Id.ToString();
+                }
+            }
+
             var fileId = await _gridFsRepository.UploadFileAsync(stream, fileInfo.Name);
             if (fileId == null)
                 throw new ArgumentNullException(nameof(fileId));
@@ -218,7 +246,6 @@ namespace Dev.Services
             return newFilePath;
         }
 
-
         private async Task<DevMedia> GetDevMediaAsync(FileInfo fileInfo)
         {
             var devMedia = new DevMedia()
@@ -229,20 +256,21 @@ namespace Dev.Services
                 Size = _filesManager.FormatFileSize(fileInfo.Length),
                 Extensions = Path.GetExtension(fileInfo.FullName),
             };
+
             if (fileInfo != null && !string.IsNullOrEmpty(fileInfo.FullName))
             {
                 var mimeType = MimeKit.MimeTypes.GetMimeType(fileInfo.FullName);
-                await IsVideo(fileInfo, devMedia, mimeType);
+                await IsVideoAsync(fileInfo, devMedia, mimeType);
             }
 
             return devMedia;
         }
 
-        private static async Task IsVideo(FileInfo fileInfo, DevMedia devMedia, string mimeType)
+        private async Task IsVideoAsync(FileInfo fileInfo, DevMedia devMedia, string mimeType)
         {
             if (mimeType.StartsWith("video"))
             {
-                var duration = await GetDuration(fileInfo);
+                var duration = await GetDurationAsync(fileInfo);
                 if (duration != null)
                 {
                     devMedia.Duration = duration.ToString();
@@ -250,7 +278,7 @@ namespace Dev.Services
             }
         }
 
-        private static async Task<TimeSpan?> GetDuration(FileInfo fileInfo)
+        private async Task<TimeSpan?> GetDurationAsync(FileInfo fileInfo)
         {
             var mediaInfo = await MediaInfo.Get(fileInfo.FullName);
             if (mediaInfo != null)
