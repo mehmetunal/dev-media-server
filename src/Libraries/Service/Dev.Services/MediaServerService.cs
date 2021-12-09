@@ -219,14 +219,50 @@ namespace Dev.Services
         }
 
 
-        private DevMedia GetDevMedia(FileInfo fileInfo)
+        private async Task<DevMedia> GetDevMediaAsync(FileInfo fileInfo)
         {
             var devMedia = new DevMedia()
             {
                 Name = fileInfo.Name,
                 Path = fileInfo.FullName,
-                Size
+                Length = fileInfo.Length,
+                Size = _filesManager.FormatFileSize(fileInfo.Length),
+                Extensions = Path.GetExtension(fileInfo.FullName),
+            };
+            if (fileInfo != null && !string.IsNullOrEmpty(fileInfo.FullName))
+            {
+                var mimeType = MimeKit.MimeTypes.GetMimeType(fileInfo.FullName);
+                await IsVideo(fileInfo, devMedia, mimeType);
             }
+
+            return devMedia;
+        }
+
+        private static async Task IsVideo(FileInfo fileInfo, DevMedia devMedia, string mimeType)
+        {
+            if (mimeType.StartsWith("video"))
+            {
+                var duration = await GetDuration(fileInfo);
+                if (duration != null)
+                {
+                    devMedia.Duration = duration.ToString();
+                }
+            }
+        }
+
+        private static async Task<TimeSpan?> GetDuration(FileInfo fileInfo)
+        {
+            var mediaInfo = await MediaInfo.Get(fileInfo.FullName);
+            if (mediaInfo != null)
+            {
+                var videoStream = mediaInfo.VideoStreams.FirstOrDefault();
+                if (videoStream != null)
+                {
+                    var videoDuration = videoStream?.Duration;
+                    return videoDuration;
+                }
+            }
+            return null;
         }
 
         #endregion
