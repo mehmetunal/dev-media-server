@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
 using MongoDB.Driver;
 using Xabe.FFmpeg;
-using Xabe.FFmpeg.Enums;
 
 namespace Dev.Services
 {
@@ -217,6 +216,17 @@ namespace Dev.Services
             _devFileProvider.FileMove(fileInfo.FullName, newFilePath);
 
             return newFilePath;
+        }
+
+
+        private DevMedia GetDevMedia(FileInfo fileInfo)
+        {
+            var devMedia = new DevMedia()
+            {
+                Name = fileInfo.Name,
+                Path = fileInfo.FullName,
+                Size
+            }
         }
 
         #endregion
