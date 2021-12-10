@@ -7,6 +7,7 @@ using Dev.Mongo.Repository;
 using Microsoft.AspNetCore.Http;
 using MongoDB.Bson;
 using MongoDB.Driver;
+using System.Text;
 using Xabe.FFmpeg;
 
 namespace Dev.Services
@@ -59,38 +60,18 @@ namespace Dev.Services
 
             return fileInfo;
         }
+
         public virtual async Task<MediaDto> GetByIdAsync(string id)
         {
             if (!ObjectId.TryParse(id, out ObjectId objid))
                 throw new ArgumentException($"{objid} not equils type ObjectId");
 
-            var gridFsData = (await _gridFsRepository.GetFileById(objid)).FirstOrDefault();
+            var mediaDto = new MediaDto();
 
-            if (gridFsData == null)
-                throw new ArgumentNullException(nameof(gridFsData));
-
-            var mediaDto = new MediaDto
-            {
-                Id = gridFsData.Id.ToString(),
-                Name = gridFsData.Filename.Replace(Path.GetExtension(gridFsData.Filename), ""),
-                Length = gridFsData.Length,
-                Extensions = Path.GetExtension(gridFsData.Filename),
-                Size = _filesManager.FormatFileSize(gridFsData.Length),
-            };
-
-            var mimeType = MimeKit.MimeTypes.GetMimeType(gridFsData.Filename);
-            if (mimeType.StartsWith("video"))
-            {
-                var videoFilePath = Path.Combine(_root, gridFsData.Filename);
-                var mediaInfo = await MediaInfo.Get(videoFilePath);
-
-                var videoStream = mediaInfo.VideoStreams.FirstOrDefault();
-                if (videoStream != null)
-                {
-                    var videoDuration = videoStream?.Duration;
-                    mediaDto.Duration = videoDuration.ToString();
-                }
-            }
+            if (_mediaSetting.FilesStoredIntoDatabase)
+                mediaDto = await GetFileStoredIntoDatabaseById(objid);
+            else
+                mediaDto = await GetFileStoredIntoFolderById(objid);
 
             return mediaDto;
         }
@@ -100,9 +81,22 @@ namespace Dev.Services
             if (!ObjectId.TryParse(id, out ObjectId objid))
                 throw new ArgumentException($"{objid} not equils type ObjectId");
 
-            var image = await _gridFsRepository.DownloadAsBytesAsync(objid);
-            if (image == null)
-                throw new ArgumentNullException();
+            byte[] image = Array.Empty<byte>();
+            if (_mediaSetting.FilesStoredIntoDatabase)
+            {
+                image = await _gridFsRepository.DownloadAsBytesAsync(objid);
+                if (image == null)
+                    throw new ArgumentNullException();
+            }
+            else
+            {
+                var result = await _mongoRepository.FindByIdAsync(id);
+                if (result != null)
+                {
+                    image = _devFileProvider.ReadAllBytes(result.Path);
+                }
+            }
+
 
             return Convert.ToBase64String(image);
         }
@@ -115,21 +109,21 @@ namespace Dev.Services
 
             if (_mediaSetting.FilesStoredIntoDatabase)
             {
-                var devMedia = await GetDevMediaAsync(info);
-                if (devMedia == null)
-                    throw new ArgumentNullException(nameof(devMedia));
-                if (devMedia != null)
-                {
-                    var result = await _mongoRepository.AddAsync(devMedia);
-                    return result.Id.ToString();
-                }
+                var fileInfo = await _gridFsRepository.UploadFileAsync(stream, info.Name);
+                if (fileInfo == null)
+                    throw new ArgumentNullException(nameof(fileInfo));
+
+                return fileInfo;
             }
-
-            var fileInfo = await _gridFsRepository.UploadFileAsync(stream, info.Name);
-            if (fileInfo == null)
-                throw new ArgumentNullException(nameof(fileInfo));
-
-            return fileInfo;
+            var devMedia = GetDevMedia(info);
+            if (devMedia == null)
+                throw new ArgumentNullException(nameof(devMedia));
+            if (devMedia != null)
+            {
+                var result = await _mongoRepository.AddAsync(devMedia);
+                return result.Id.ToString();
+            }
+            return null;
         }
 
         public async Task<(byte[] fileByte, string fileName)> FileDownload(string id)
@@ -137,17 +131,28 @@ namespace Dev.Services
             if (!ObjectId.TryParse(id, out ObjectId objid))
                 throw new ArgumentException($"{objid} not equils type ObjectId");
 
-            var gridFsData = (await _gridFsRepository.GetFileById(objid)).FirstOrDefault();
-            if (gridFsData == null)
-                throw new ArgumentNullException(nameof(gridFsData));
+            byte[]? resultByte = Array.Empty<byte>();
+            if (_mediaSetting.FilesStoredIntoDatabase)
+            {
+                var gridFsData = (await _gridFsRepository.GetFileById(objid)).FirstOrDefault();
+                if (gridFsData == null)
+                    throw new ArgumentNullException(nameof(gridFsData));
 
-            var resultByte = await _gridFsRepository.DownloadAsBytesAsync(objid);
-            if (resultByte == null)
-                throw new ArgumentNullException(nameof(resultByte));
+                resultByte = await _gridFsRepository.DownloadAsBytesAsync(objid);
+                if (resultByte == null)
+                    throw new ArgumentNullException(nameof(resultByte));
 
-            return (resultByte, gridFsData.Filename);
+                return (resultByte, gridFsData.Filename);
+            }
+
+            var file = await _mongoRepository.FindByIdAsync(id);
+            if (file == null)
+                throw new ArgumentNullException(nameof(file));
+
+            resultByte = _devFileProvider.ReadAllBytes(file.Path);
+
+            return (resultByte, file.Name);
         }
-
 
         public async Task<Stream> GetFileByIdAsync(string id)
         {
@@ -155,7 +160,16 @@ namespace Dev.Services
                 throw new ArgumentException($"{objid} not equils type ObjectId");
 
             var stream = new MemoryStream();
-            await _gridFsRepository.DownloadToStreamAsync(objid, stream);
+            if (_mediaSetting.FilesStoredIntoDatabase)
+            {
+                await _gridFsRepository.DownloadToStreamAsync(objid, stream);
+            }
+            else
+            {
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+                fs.CopyTo(stream);
+                return stream;
+            }
 
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
@@ -180,25 +194,27 @@ namespace Dev.Services
             if (fileInfo == null)
                 throw new ArgumentNullException(nameof(fileInfo));
 
-            if (_mediaSetting.FilesStoredIntoDatabase)
+            if (_mediaSetting.FilesStoredIntoDatabase == true)
             {
-                var devMedia = await GetDevMediaAsync(fileInfo);
-                devMedia.Id = objid;
+                var fileId = await _gridFsRepository.UploadFileAsync(stream, fileInfo.Name);
+                if (fileId == null)
+                    throw new ArgumentNullException(nameof(fileId));
 
-                if (devMedia == null)
-                    throw new ArgumentNullException(nameof(devMedia));
-                if (devMedia != null)
-                {
-                    var result = await _mongoRepository.AddAsync(devMedia);
-                    return result.Id.ToString();
-                }
+                return fileId;
+
+            }
+            var devMedia = GetDevMedia(fileInfo);
+            devMedia.Id = objid;
+
+            if (devMedia == null)
+                throw new ArgumentNullException(nameof(devMedia));
+            if (devMedia != null)
+            {
+                var result = await _mongoRepository.AddAsync(devMedia);
+                return result.Id.ToString();
             }
 
-            var fileId = await _gridFsRepository.UploadFileAsync(stream, fileInfo.Name);
-            if (fileId == null)
-                throw new ArgumentNullException(nameof(fileId));
-
-            return fileId;
+            return null;
         }
 
         public virtual async Task<bool> DeleteAsync(string id)
@@ -209,11 +225,20 @@ namespace Dev.Services
                     throw new ArgumentException($"{objid} not equils type ObjectId");
 
                 var file = await GetByIdAsync(id);
+                if (file != null)
+                {
+                    var fullPath = Path.Combine(_root, file.Name);
+                    _filesManager.Delete(fullPath);
+                }
 
-                var fullPath = Path.Combine(_root, file.Name);
-                _filesManager.Delete(fullPath);
-
-                await _gridFsRepository.DeleteAsync(objid);
+                if (_mediaSetting.FilesStoredIntoDatabase)
+                {
+                    await _gridFsRepository.DeleteAsync(objid);
+                }
+                else
+                {
+                    await _mongoRepository.DeleteAsync(objid);
+                }
 
                 return true;
             }
@@ -228,6 +253,47 @@ namespace Dev.Services
         protected virtual string RemoteIp => EngineContext.Current.Resolve<IHttpContextAccessor>().HttpContext.Connection.RemoteIpAddress.ToString();
 
         #region Private
+
+        private async Task<MediaDto> GetFileStoredIntoFolderById(ObjectId objid)
+        {
+            var mediaDto = new MediaDto();
+            var file = await _mongoRepository.FindByIdAsync(objid);
+            if (file == null)
+                throw new ArgumentNullException(nameof(file));
+
+            FileInfo fileInfo = new(file.Path);
+            var devMedia = GetDevMedia(fileInfo);
+            if (mediaDto != null)
+            {
+                mediaDto.Id = devMedia.Id.ToString();
+                mediaDto.Name = devMedia.Name;
+                mediaDto.Length = devMedia.Length;
+                mediaDto.Extensions = devMedia.Extensions;
+                mediaDto.Size = devMedia.Size;
+            }
+            return mediaDto;
+        }
+
+        private async Task<MediaDto> GetFileStoredIntoDatabaseById(ObjectId objid)
+        {
+            var gridFsData = (await _gridFsRepository.GetFileById(objid)).FirstOrDefault();
+
+            if (gridFsData == null)
+                throw new ArgumentNullException(nameof(gridFsData));
+
+            var mediaDto = new MediaDto
+            {
+                Id = gridFsData.Id.ToString(),
+                Name = gridFsData.Filename.Replace(Path.GetExtension(gridFsData.Filename), ""),
+                Length = gridFsData.Length,
+                Extensions = Path.GetExtension(gridFsData.Filename),
+                Size = _filesManager.FormatFileSize(gridFsData.Length),
+            };
+
+            FileTypeProsess(gridFsData.Filename, out string duration);
+            mediaDto.Duration = duration;
+            return mediaDto;
+        }
 
         private string FileMove(string fileName)
         {
@@ -246,7 +312,7 @@ namespace Dev.Services
             return newFilePath;
         }
 
-        private async Task<DevMedia> GetDevMediaAsync(FileInfo fileInfo)
+        private DevMedia GetDevMedia(FileInfo fileInfo)
         {
             var devMedia = new DevMedia()
             {
@@ -257,30 +323,43 @@ namespace Dev.Services
                 Extensions = Path.GetExtension(fileInfo.FullName),
             };
 
-            if (fileInfo != null && !string.IsNullOrEmpty(fileInfo.FullName))
-            {
-                var mimeType = MimeKit.MimeTypes.GetMimeType(fileInfo.FullName);
-                await IsVideoAsync(fileInfo, devMedia, mimeType);
-            }
+            string duration;
+            FileTypeProsess(fileInfo.FullName, out duration);
+            devMedia.Duration = duration;
 
             return devMedia;
         }
 
-        private async Task IsVideoAsync(FileInfo fileInfo, DevMedia devMedia, string mimeType)
+        private void FileTypeProsess(string filePath, out string duration)
         {
-            if (mimeType.StartsWith("video"))
+            duration = null;
+            if (!string.IsNullOrEmpty(filePath))
             {
-                var duration = await GetDurationAsync(fileInfo);
-                if (duration != null)
-                {
-                    devMedia.Duration = duration.ToString();
-                }
+                var mimeType = MimeKit.MimeTypes.GetMimeType(filePath);
+                IsVideo(filePath, mimeType, out duration);
             }
         }
 
-        private async Task<TimeSpan?> GetDurationAsync(FileInfo fileInfo)
+        private void IsVideo(string filePath, string? mimeType, out string duration)
         {
-            var mediaInfo = await MediaInfo.Get(fileInfo.FullName);
+            duration = null;
+            if (!string.IsNullOrEmpty(mimeType) && mimeType.StartsWith("video"))
+            {
+                var getDuration = GetVideoDuration(filePath);
+                if (getDuration != null)
+                {
+                    duration = getDuration.ToString();
+                }
+            }
+        }
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="filePath"></param>
+        /// <returns></returns>
+        private TimeSpan? GetVideoDuration(string filePath)
+        {
+            var mediaInfo = MediaInfo.Get(filePath).GetAwaiter().GetResult();
             if (mediaInfo != null)
             {
                 var videoStream = mediaInfo.VideoStreams.FirstOrDefault();

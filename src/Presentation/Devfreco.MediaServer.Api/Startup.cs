@@ -1,5 +1,6 @@
 using Dev.Core.IO;
 using Dev.Core.IoC;
+using Dev.Data.Mongo;
 using Dev.Framework.Extensions;
 using Dev.Framework.Helper.ModelStateResponseFactory;
 using Dev.Framework.Security.Model;
@@ -23,7 +24,7 @@ namespace Devfreco.MediaServer
 {
     public class Startup
     {
-        protected string SwaggerTitle = "My API";
+        protected string SwaggerTitle = "Devfreco Media Server API";
         protected string SwaggerVersion = "v1";
         protected ApiTokenOptions TokenOptions;
         protected IConfiguration Configuration { get; set; }
@@ -42,6 +43,11 @@ namespace Devfreco.MediaServer
             var tokenOptionsConfiguration = Configuration.GetSection("TokenOptions");
 
             services.Configure<ApiTokenOptions>(tokenOptionsConfiguration);
+
+
+            var mediaSetting = Configuration.GetSection("MediaSetting");
+
+            services.Configure<MediaSetting>(mediaSetting);
 
             TokenOptions = tokenOptionsConfiguration.Get<ApiTokenOptions>();
 
