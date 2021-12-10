@@ -1,5 +1,8 @@
-﻿namespace Dev.Data.Mongo
+﻿using Dev.Data.Mongo.Attributes;
+
+namespace Dev.Data.Mongo
 {
+    [BsonCollection("dev-media")]
     public partial class DevMedia : BaseEntity
     {
         public string? Path { get; set; }

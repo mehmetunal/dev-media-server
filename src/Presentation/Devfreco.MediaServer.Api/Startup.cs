@@ -43,10 +43,11 @@ namespace Devfreco.MediaServer
             var tokenOptionsConfiguration = Configuration.GetSection("TokenOptions");
 
             services.Configure<ApiTokenOptions>(tokenOptionsConfiguration);
-
             var mediaSetting = Configuration.GetSection("MediaSetting");
-            services.ConfigureStartupConfig<MediaSetting>(mediaSetting);
+            if (mediaSetting != null)
+                services.AddSingleton(typeof(MediaSetting), mediaSetting.Get<MediaSetting>());
 
+            // services.ConfigureStartupConfig<MediaSetting>(mediaSetting);
             TokenOptions = tokenOptionsConfiguration.Get<ApiTokenOptions>();
 
             services.AddControllers().AddJsonOptionsConfig();
@@ -72,9 +73,9 @@ namespace Devfreco.MediaServer
             services.Configure<ApiBehaviorOptions>(options => { options.InvalidModelStateResponseFactory = ctx => new ModelStateFeatureFilter(); });
 
             services.AddMongoDbConfig(Configuration);
-
-            services.AddScoped(typeof(IMongoRepository<>), typeof(MongoRepository<>));
+            
             services.AddScoped(typeof(IGridFsRepository), typeof(GridFsRepository));
+            services.AddScoped(typeof(IMongoRepository<>), typeof(MongoRepository<>));
 
             services.AddSingleton<IFileManagerProviderBase>(
                 new FileManagerProviderBase(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")));
