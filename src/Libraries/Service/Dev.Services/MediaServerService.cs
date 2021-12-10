@@ -18,7 +18,7 @@ namespace Dev.Services
         private string path = "";
         private readonly string _root;
         private readonly string _tempFolder;
-        //private readonly MediaSetting _mediaSetting;
+        private readonly MediaSetting _mediaSetting;
         private readonly IFilesManager _filesManager;
         private readonly IDevFileProvider _devFileProvider;
         private readonly IGridFsRepository _gridFsRepository;
@@ -29,7 +29,7 @@ namespace Dev.Services
         #region Ctor
 
         public MediaServerService(
-            //MediaSetting mediaSetting,
+            MediaSetting mediaSetting,
             IFilesManager filesManager,
             IDevFileProvider devFileProvider,
             IGridFsRepository gridFsRepository,
@@ -42,7 +42,7 @@ namespace Dev.Services
             _root = $"{_devFileProvider.GetAbsolutePath("/")}/{path}";
             _tempFolder = $"{_root}/Temp";
             _gridFsRepository = gridFsRepository;
-            //_mediaSetting = mediaSetting;
+            _mediaSetting = mediaSetting;
         }
 
         #endregion
@@ -68,8 +68,7 @@ namespace Dev.Services
 
             var mediaDto = new MediaDto();
 
-            //if (_mediaSetting.FilesStoredIntoDatabase)
-            if (false)
+            if (_mediaSetting.FilesStoredIntoDatabase)
                 mediaDto = await GetFileStoredIntoDatabaseById(objid);
             else
                 mediaDto = await GetFileStoredIntoFolderById(objid);
@@ -83,8 +82,7 @@ namespace Dev.Services
                 throw new ArgumentException($"{objid} not equils type ObjectId");
 
             byte[] image = Array.Empty<byte>();
-            //if (_mediaSetting.FilesStoredIntoDatabase)
-            if (false)
+            if (_mediaSetting.FilesStoredIntoDatabase)
             {
                 image = await _gridFsRepository.DownloadAsBytesAsync(objid);
                 if (image == null)
@@ -109,8 +107,7 @@ namespace Dev.Services
             var stream = new FileStream(path: newFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             FileInfo info = new(newFilePath);
 
-            //if (_mediaSetting.FilesStoredIntoDatabase)
-            if (false)
+            if (_mediaSetting.FilesStoredIntoDatabase)
             {
                 var fileInfo = await _gridFsRepository.UploadFileAsync(stream, info.Name);
                 if (fileInfo == null)
@@ -135,8 +132,7 @@ namespace Dev.Services
                 throw new ArgumentException($"{objid} not equils type ObjectId");
 
             byte[]? resultByte = Array.Empty<byte>();
-            //if (_mediaSetting.FilesStoredIntoDatabase)
-            if (false)
+            if (_mediaSetting.FilesStoredIntoDatabase)
             {
                 var gridFsData = (await _gridFsRepository.GetFileById(objid)).FirstOrDefault();
                 if (gridFsData == null)
@@ -164,8 +160,7 @@ namespace Dev.Services
                 throw new ArgumentException($"{objid} not equils type ObjectId");
 
             var stream = new MemoryStream();
-            //if (_mediaSetting.FilesStoredIntoDatabase)
-            if (false)
+            if (_mediaSetting.FilesStoredIntoDatabase)
             {
                 await _gridFsRepository.DownloadToStreamAsync(objid, stream);
             }
@@ -199,8 +194,7 @@ namespace Dev.Services
             if (fileInfo == null)
                 throw new ArgumentNullException(nameof(fileInfo));
 
-            //if (_mediaSetting.FilesStoredIntoDatabase)
-            if (false)
+            if (_mediaSetting.FilesStoredIntoDatabase)
             {
                 var fileId = await _gridFsRepository.UploadFileAsync(stream, fileInfo.Name);
                 if (fileId == null)
@@ -237,8 +231,7 @@ namespace Dev.Services
                     _filesManager.Delete(fullPath);
                 }
 
-                //if (_mediaSetting.FilesStoredIntoDatabase)
-                if (false)
+                if (_mediaSetting.FilesStoredIntoDatabase)
                 {
                     await _gridFsRepository.DeleteAsync(objid);
                 }

@@ -47,7 +47,7 @@ namespace Devfreco.MediaServer
             if (mediaSetting != null)
                 services.AddSingleton(typeof(MediaSetting), mediaSetting.Get<MediaSetting>());
 
-            // services.ConfigureStartupConfig<MediaSetting>(mediaSetting);
+            services.ConfigureStartupConfig<MediaSetting>(mediaSetting);
             TokenOptions = tokenOptionsConfiguration.Get<ApiTokenOptions>();
 
             services.AddControllers().AddJsonOptionsConfig();
