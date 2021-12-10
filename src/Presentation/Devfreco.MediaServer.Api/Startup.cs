@@ -44,19 +44,17 @@ namespace Devfreco.MediaServer
 
             services.Configure<ApiTokenOptions>(tokenOptionsConfiguration);
 
-
             var mediaSetting = Configuration.GetSection("MediaSetting");
-
-            services.Configure<MediaSetting>(mediaSetting);
+            services.ConfigureStartupConfig<MediaSetting>(mediaSetting);
 
             TokenOptions = tokenOptionsConfiguration.Get<ApiTokenOptions>();
 
             services.AddControllers().AddJsonOptionsConfig();
-            
+
             services.AddMvc();
 
             services.AddControllersWithViews();
-            
+
             services.AddWebEncoders();
 
             services.AddAdminApiCors(TokenOptions);
@@ -68,7 +66,7 @@ namespace Devfreco.MediaServer
             services.AddHttpContextAccessor();
 
             services.AddSwaggerGenConfig(TokenOptions);
-            
+
             services.RegisterAll<IService>();
 
             services.Configure<ApiBehaviorOptions>(options => { options.InvalidModelStateResponseFactory = ctx => new ModelStateFeatureFilter(); });
@@ -131,15 +129,13 @@ namespace Devfreco.MediaServer
 
             app.UseExceptionHandler(c => c.Run(async context =>
             {
-                var exception = context.Features
-                    .Get<IExceptionHandlerPathFeature>()
-                    .Error;
+                var exception = context.Features.Get<IExceptionHandlerPathFeature>().Error;
                 var response = new { error = exception.Message };
                 await context.Response.WriteAsJsonAsync(response);
             }));
 
             app.UseStaticFiles();
-            
+
             app.UseSwaggerUIConfig(TokenOptions);
 
             app.UseRouting();
