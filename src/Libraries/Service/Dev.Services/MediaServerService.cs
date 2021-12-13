@@ -271,6 +271,7 @@ namespace Dev.Services
                 mediaDto.Length = devMedia.Length;
                 mediaDto.Extensions = devMedia.Extensions;
                 mediaDto.Size = devMedia.Size;
+                mediaDto.Duration = devMedia.Duration;
             }
             return mediaDto;
         }
