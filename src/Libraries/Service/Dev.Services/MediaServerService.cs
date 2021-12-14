@@ -166,7 +166,8 @@ namespace Dev.Services
             }
             else
             {
-                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read);
+                var file = await _mongoRepository.FindByIdAsync(objid);
+                using var fs = new FileStream(file.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
                 fs.CopyTo(stream);
                 return stream;
             }
@@ -270,6 +271,7 @@ namespace Dev.Services
                 mediaDto.Length = devMedia.Length;
                 mediaDto.Extensions = devMedia.Extensions;
                 mediaDto.Size = devMedia.Size;
+                mediaDto.Duration = devMedia.Duration;
             }
             return mediaDto;
         }
